@@ -1,4 +1,4 @@
-"""Stage 2/3/5 - Strategy selection, generation, and the convergence decision loop.
+﻿"""Stage 2/3/5 - Strategy selection, generation, and the convergence decision loop.
 
 The loop is the core of the module:
 
@@ -98,7 +98,7 @@ def run(spec: ScheduleSpec, catalogs: CatalogBundle) -> RunResult:
     best_score: tuple[int, int] | None = None
 
     for switches, definition in enumerate(candidates):
-        if switches > spec.max_strategy_switches:
+        if switches >= spec.max_strategy_switches:
             break
 
         result.strategies_tried.append(definition.strategy_id)
