@@ -23,12 +23,13 @@ class BalancedRotationStrategy(IScheduleStrategy):
         shift_history: dict[str, dict[date, str]] = {}
         load: dict[str, int] = {e.employee_id: 0 for e in spec.employees}
         last_day: dict[str, date | None] = {e.employee_id: None for e in spec.employees}
+        max_run = context.max_consecutive_days()
 
         for slot in sorted(slots, key=lambda s: (s.day, s.shift_type_id, s.role, s.seat)):
             candidates = [
                 e.employee_id
                 for e in spec.employees
-                if self.eligible(e.employee_id, slot, spec, taken_days, shift_history)
+                if self.eligible(e.employee_id, slot, spec, taken_days, shift_history, max_run)
             ]
             if not candidates:
                 roster.unfilled.append(slot)

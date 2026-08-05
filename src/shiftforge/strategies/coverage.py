@@ -39,11 +39,13 @@ class CoverageFirstStrategy(IScheduleStrategy):
             ),
         )
 
+        max_run = context.max_consecutive_days()
+
         for slot in ordered:
             candidates = [
                 e.employee_id
                 for e in spec.employees
-                if self.eligible(e.employee_id, slot, spec, taken_days, shift_history)
+                if self.eligible(e.employee_id, slot, spec, taken_days, shift_history, max_run)
             ]
             if not candidates:
                 roster.unfilled.append(slot)

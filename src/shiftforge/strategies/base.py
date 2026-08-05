@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from ..config import CatalogBundle, ConfigError, StrategyDef
@@ -27,6 +27,14 @@ class StrategyContext:
     pressure: int = 0
     notes: list[str] = field(default_factory=list)
 
+    def max_consecutive_days(self) -> int | None:
+        """The R005 limit as declared by the rule catalog, or None if absent."""
+        try:
+            rule = self.catalogs.rule("max_consecutive_days")
+        except ConfigError:
+            return None
+        return rule.params.get("max_days")
+
 
 class IScheduleStrategy(ABC):
     """Contract every schedule strategy must satisfy."""
@@ -46,12 +54,14 @@ class IScheduleStrategy(ABC):
         spec: ScheduleSpec,
         taken_days: dict[str, set[date]],
         shift_history: dict[str, dict[date, str]],
+        max_consecutive_days: int | None = None,
     ) -> bool:
         """Hard-rule gate applied before any preference ordering.
 
-        Mirrors R002 (qualification), R003 (no double booking), R004 (rest) and
-        the per-employee max_shifts ceiling. Strategies must call this so a
-        candidate roster never violates a hard rule by construction.
+        Mirrors R002 (qualification), R003 (no double booking), R004 (rest),
+        R005 (consecutive days) and the per-employee max_shifts ceiling.
+        Strategies must call this so a candidate roster never violates a hard
+        rule by construction.
         """
         employee = spec.employee_by_id(employee_id)
 
@@ -65,11 +75,27 @@ class IScheduleStrategy(ABC):
             return False
 
         # R004: a night shift must not be followed by a morning shift.
-        from datetime import timedelta
-
         previous_day = slot.day - timedelta(days=1)
         previous_shift = shift_history.get(employee_id, {}).get(previous_day)
-        return not (previous_shift == "night" and slot.shift_type_id == "morning")
+        if previous_shift == "night" and slot.shift_type_id == "morning":
+            return False
+
+        # R005: taking this slot must not create an over-long consecutive run.
+        if max_consecutive_days is not None:
+            booked = taken_days.get(employee_id, set())
+            run = 1
+            cursor = slot.day - timedelta(days=1)
+            while cursor in booked:
+                run += 1
+                cursor -= timedelta(days=1)
+            cursor = slot.day + timedelta(days=1)
+            while cursor in booked:
+                run += 1
+                cursor += timedelta(days=1)
+            if run > max_consecutive_days:
+                return False
+
+        return True
 
     @staticmethod
     def commit(
