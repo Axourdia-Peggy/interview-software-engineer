@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+uv.lock
+
+# Run artifacts
+output/
+interview-software-engineer.wiki/
