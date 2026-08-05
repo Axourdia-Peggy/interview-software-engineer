@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.2",
+  "description": "Rule catalog. Each rule is evaluated by the Validation stage against a generated roster.",
+  "rules": [
+    {
+      "rule_id": "R001",
+      "name": "coverage",
+      "severity": "hard",
+      "description": "Every shift slot declared in the demand table must be assigned exactly the required headcount.",
+      "params": {}
+    },
+    {
+      "rule_id": "R002",
+      "name": "qualification",
+      "severity": "hard",
+      "description": "An employee may only be assigned to a role listed in that employee's skills.",
+      "params": {}
+    },
+    {
+      "rule_id": "R003",
+      "name": "no_double_booking",
+      "severity": "hard",
+      "description": "An employee may hold at most one assignment per calendar day.",
+      "params": {}
+    },
+    {
+      "rule_id": "R004",
+      "name": "rest_between_shifts",
+      "severity": "hard",
+      "description": "A night shift must not be immediately followed by a morning shift on the next day.",
+      "params": {
+        "forbidden_transitions": [["night", "morning"]]
+      }
+    },
+    {
+      "rule_id": "R005",
+      "name": "max_consecutive_days",
+      "severity": "hard",
+      "description": "An employee must not work more than max_days consecutive calendar days.",
+      "params": {
+        "max_days": 5
+      }
+    },
+    {
+      "rule_id": "R006",
+      "name": "weekly_hours",
+      "severity": "soft",
+      "description": "Each employee's total assigned hours should fall within [min_hours, max_hours].",
+      "params": {
+        "min_hours": 24,
+        "max_hours": 40
+      }
+    },
+    {
+      "rule_id": "R007",
+      "name": "fairness",
+      "severity": "soft",
+      "description": "The spread between the busiest and the least busy employee should not exceed max_spread shifts.",
+      "params": {
+        "max_spread": 3
+      }
+    }
+  ]
+}

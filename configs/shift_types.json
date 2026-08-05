@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.2",
+  "description": "Shift type definitions shared by the generation and validation stages.",
+  "shift_types": [
+    {
+      "shift_type_id": "morning",
+      "display_name": "Morning",
+      "start_hour": 8,
+      "end_hour": 16,
+      "duration_hours": 8
+    },
+    {
+      "shift_type_id": "evening",
+      "display_name": "Evening",
+      "start_hour": 16,
+      "end_hour": 24,
+      "duration_hours": 8
+    },
+    {
+      "shift_type_id": "night",
+      "display_name": "Night",
+      "start_hour": 0,
+      "end_hour": 8,
+      "duration_hours": 8
+    }
+  ]
+}

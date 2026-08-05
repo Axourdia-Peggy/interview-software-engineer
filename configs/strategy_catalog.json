@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.2",
+  "description": "Strategy catalog consumed by the Strategy Selection stage. Entries are ranked by 'priority' (ascending) and filtered by 'selection_rules'.",
+  "strategies": [
+    {
+      "strategy_id": "balanced_rotation",
+      "display_name": "Balanced Rotation",
+      "priority": 1,
+      "plugin": "shiftforge.strategies.balanced:BalancedRotationStrategy",
+      "selection_rules": {
+        "max_employees": 40,
+        "requires_roles": []
+      },
+      "tuning": {
+        "lookback_days": 3,
+        "shuffle_seed": 20260101
+      }
+    },
+    {
+      "strategy_id": "seniority_first",
+      "display_name": "Seniority First",
+      "priority": 2,
+      "plugin": "shiftforge.strategies.seniority:SeniorityFirstStrategy",
+      "selection_rules": {
+        "max_employees": 100,
+        "requires_roles": []
+      },
+      "tuning": {
+        "lookback_days": 3,
+        "shuffle_seed": 20260101
+      }
+    },
+    {
+      "strategy_id": "coverage_first",
+      "display_name": "Coverage First",
+      "priority": 3,
+      "plugin": "shiftforge.strategies.coverage:CoverageFirstStrategy",
+      "selection_rules": {
+        "max_employees": 100,
+        "requires_roles": []
+      },
+      "tuning": {
+        "lookback_days": 1,
+        "shuffle_seed": 20260101
+      }
+    }
+  ]
+}
