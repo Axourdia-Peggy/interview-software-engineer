@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.2",
+  "project_name": "ward_tight",
+  "planning_horizon": {
+    "start_date": "2026-04-06",
+    "days": 7
+  },
+  "employees": [
+    {"employee_id": "N01", "name": "Alma",  "skills": ["nurse", "senior"], "seniority": 9, "max_shifts": 5},
+    {"employee_id": "N02", "name": "Boris", "skills": ["nurse", "senior"], "seniority": 8, "max_shifts": 5},
+    {"employee_id": "N03", "name": "Chen",  "skills": ["nurse"],           "seniority": 7, "max_shifts": 5},
+    {"employee_id": "N04", "name": "Dora",  "skills": ["nurse"],           "seniority": 6, "max_shifts": 5},
+    {"employee_id": "N05", "name": "Emil",  "skills": ["nurse"],           "seniority": 5, "max_shifts": 5},
+    {"employee_id": "N06", "name": "Fay",   "skills": ["nurse"],           "seniority": 4, "max_shifts": 5},
+    {"employee_id": "N07", "name": "Goran", "skills": ["nurse"],           "seniority": 3, "max_shifts": 5},
+    {"employee_id": "N08", "name": "Hana",  "skills": ["nurse"],           "seniority": 2, "max_shifts": 5},
+    {"employee_id": "N09", "name": "Ivan",  "skills": ["nurse"],           "seniority": 2, "max_shifts": 5},
+    {"employee_id": "N10", "name": "Juno",  "skills": ["nurse"],           "seniority": 1, "max_shifts": 5}
+  ],
+  "demand": [
+    {"shift_type_id": "morning", "role": "nurse",  "headcount": 3},
+    {"shift_type_id": "morning", "role": "senior", "headcount": 1},
+    {"shift_type_id": "evening", "role": "nurse",  "headcount": 2}
+  ],
+  "convergence": {
+    "max_iterations": 12,
+    "max_strategy_switches": 2
+  }
+}

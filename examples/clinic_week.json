@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.2",
+  "project_name": "clinic_week",
+  "planning_horizon": {
+    "start_date": "2026-03-02",
+    "days": 7
+  },
+  "employees": [
+    {"employee_id": "E01", "name": "Ada",   "skills": ["nurse", "reception"], "seniority": 5, "max_shifts": 5},
+    {"employee_id": "E02", "name": "Ben",   "skills": ["nurse"],              "seniority": 3, "max_shifts": 5},
+    {"employee_id": "E03", "name": "Cleo",  "skills": ["nurse", "pharmacy"],  "seniority": 4, "max_shifts": 5},
+    {"employee_id": "E04", "name": "Dan",   "skills": ["reception"],          "seniority": 2, "max_shifts": 5},
+    {"employee_id": "E05", "name": "Eve",   "skills": ["nurse", "reception"], "seniority": 1, "max_shifts": 5},
+    {"employee_id": "E06", "name": "Finn",  "skills": ["pharmacy"],           "seniority": 3, "max_shifts": 5},
+    {"employee_id": "E07", "name": "Gita",  "skills": ["nurse", "pharmacy"],  "seniority": 2, "max_shifts": 5},
+    {"employee_id": "E08", "name": "Hugo",  "skills": ["nurse", "reception"], "seniority": 4, "max_shifts": 5},
+    {"employee_id": "E09", "name": "Iris",  "skills": ["nurse", "pharmacy"],  "seniority": 2, "max_shifts": 5},
+    {"employee_id": "E10", "name": "Jonas", "skills": ["nurse", "reception"], "seniority": 1, "max_shifts": 5}
+  ],
+  "demand": [
+    {"shift_type_id": "morning", "role": "nurse",     "headcount": 2},
+    {"shift_type_id": "morning", "role": "reception", "headcount": 1},
+    {"shift_type_id": "evening", "role": "nurse",     "headcount": 1},
+    {"shift_type_id": "evening", "role": "pharmacy",  "headcount": 1},
+    {"shift_type_id": "night",   "role": "nurse",     "headcount": 1}
+  ],
+  "unavailability": [
+    {"employee_id": "E02", "date": "2026-03-04"},
+    {"employee_id": "E06", "date": "2026-03-05"},
+    {"employee_id": "E04", "date": "2026-03-07"}
+  ],
+  "convergence": {
+    "max_iterations": 12,
+    "max_strategy_switches": 2
+  }
+}
