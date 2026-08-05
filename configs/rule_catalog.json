@@ -45,10 +45,10 @@
       "rule_id": "R006",
       "name": "weekly_hours",
       "severity": "soft",
-      "description": "Each employee's total assigned hours should fall within [min_hours, max_hours].",
+      "description": "Each employee's total assigned hours should fall within [min_weekly_hours, max_weekly_hours].",
       "params": {
-        "min_hours": 24,
-        "max_hours": 40
+        "min_weekly_hours": 24,
+        "max_weekly_hours": 40
       }
     },
     {
@@ -58,6 +58,15 @@
       "description": "The spread between the busiest and the least busy employee should not exceed max_spread shifts.",
       "params": {
         "max_spread": 3
+      }
+    },
+    {
+      "rule_id": "R008",
+      "name": "night_shift_quota",
+      "severity": "soft",
+      "description": "No employee should be assigned more than max_nights night shifts across the planning horizon.",
+      "params": {
+        "max_nights": 2
       }
     }
   ]
