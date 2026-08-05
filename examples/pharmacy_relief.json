@@ -6,15 +6,19 @@
     "days": 7
   },
   "employees": [
-    {"employee_id": "P01", "name": "Kara",  "skills": ["nurse", "reception"], "seniority": 5, "max_shifts": 6},
-    {"employee_id": "P02", "name": "Liam",  "skills": ["nurse", "reception"], "seniority": 4, "max_shifts": 6},
-    {"employee_id": "P03", "name": "Mira",  "skills": ["nurse", "reception"], "seniority": 3, "max_shifts": 6},
-    {"employee_id": "P04", "name": "Noor",  "skills": ["nurse", "reception"], "seniority": 5, "max_shifts": 6},
-    {"employee_id": "P05", "name": "Omar",  "skills": ["nurse", "reception"], "seniority": 4, "max_shifts": 6},
-    {"employee_id": "P06", "name": "Priya", "skills": ["nurse", "reception"], "seniority": 3, "max_shifts": 6}
+    {"employee_id": "P01", "name": "Kara",  "skills": ["nurse", "reception"], "seniority": 5, "max_shifts": 5},
+    {"employee_id": "P02", "name": "Liam",  "skills": ["nurse", "reception"], "seniority": 4, "max_shifts": 5},
+    {"employee_id": "P03", "name": "Mira",  "skills": ["nurse", "reception"], "seniority": 3, "max_shifts": 5},
+    {"employee_id": "P04", "name": "Noor",  "skills": ["nurse", "reception"], "seniority": 5, "max_shifts": 5},
+    {"employee_id": "P05", "name": "Omar",  "skills": ["nurse", "reception"], "seniority": 4, "max_shifts": 5},
+    {"employee_id": "P06", "name": "Priya", "skills": ["nurse", "reception"], "seniority": 3, "max_shifts": 5},
+    {"employee_id": "P07", "name": "Quinn", "skills": ["nurse", "reception"], "seniority": 2, "max_shifts": 5},
+    {"employee_id": "P08", "name": "Rafa",  "skills": ["nurse", "reception"], "seniority": 4, "max_shifts": 5},
+    {"employee_id": "P09", "name": "Sena",  "skills": ["nurse"],              "seniority": 2, "max_shifts": 5},
+    {"employee_id": "P10", "name": "Tomas", "skills": ["nurse"],              "seniority": 1, "max_shifts": 5}
   ],
   "demand": [
-    {"shift_type_id": "morning", "role": "nurse",     "headcount": 3},
+    {"shift_type_id": "morning", "role": "nurse",     "headcount": 2},
     {"shift_type_id": "morning", "role": "reception", "headcount": 1},
     {"shift_type_id": "evening", "role": "nurse",     "headcount": 1}
   ],
