@@ -1,4 +1,4 @@
-﻿"""Stage 2/3/5 - Strategy selection, generation, and the convergence decision loop.
+"""Stage 2/3/5 - Strategy selection, generation, and the convergence decision loop.
 
 The loop is the core of the module:
 
