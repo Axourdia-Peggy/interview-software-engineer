@@ -1,0 +1,8 @@
+include:
+  # 如果是同一個專案，用 local；如果是跨專案範本，用 project
+  # - local: ".gitlab/workflows/gitlab-mirror.yml"
+  - project: "Axourdia/aga-devops"
+    file: ".gitlab/workflows/gitlab-mirror.yml"
+    ref: main  # 強烈建議指定 branch 或 tag，避免 main 分支變動影響到其他專案
+stages:
+  - sync
