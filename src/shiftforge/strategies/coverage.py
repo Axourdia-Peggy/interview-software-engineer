@@ -3,6 +3,8 @@
 Fills the hardest slots first. A slot is "hard" when few employees hold the role
 it requires, so scheduling it early avoids painting the roster into a corner.
 Used as the fallback when the preference-driven strategies leave seats unfilled.
+
+Opts into the composable eligibility gates rather than the monolithic one.
 """
 
 from __future__ import annotations
@@ -10,7 +12,7 @@ from __future__ import annotations
 from datetime import date
 
 from ..models import Roster, ScheduleSpec, Slot
-from .base import IScheduleStrategy, StrategyContext
+from .base import RestGate, StrategyContext, UnavailabilityGate
 
 
 def _role_scarcity(spec: ScheduleSpec, role: str) -> int:
@@ -18,14 +20,14 @@ def _role_scarcity(spec: ScheduleSpec, role: str) -> int:
     return sum(1 for e in spec.employees if e.can_perform(role))
 
 
-class CoverageFirstStrategy(IScheduleStrategy):
+class CoverageFirstStrategy(UnavailabilityGate, RestGate):
     strategy_id = "coverage_first"
 
     def build(self, slots: list[Slot], context: StrategyContext) -> Roster:
         spec = context.spec
         roster = Roster(strategy_id=self.strategy_id)
 
-        taken_days: dict[str, set[date]] = {}
+        taken_days = self.ledger()
         shift_history: dict[str, dict[date, str]] = {}
         load: dict[str, int] = {e.employee_id: 0 for e in spec.employees}
 

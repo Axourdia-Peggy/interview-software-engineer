@@ -19,7 +19,7 @@ class BalancedRotationStrategy(IScheduleStrategy):
         spec = context.spec
         roster = Roster(strategy_id=self.strategy_id)
 
-        taken_days: dict[str, set[date]] = {}
+        taken_days = self.ledger()
         shift_history: dict[str, dict[date, str]] = {}
         load: dict[str, int] = {e.employee_id: 0 for e in spec.employees}
         last_day: dict[str, date | None] = {e.employee_id: None for e in spec.employees}

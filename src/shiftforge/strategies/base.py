@@ -41,14 +41,25 @@ class IScheduleStrategy(ABC):
 
     strategy_id: str = "unnamed"
 
+    # Booking ledger: which calendar days each employee is already committed to.
+    # Hoisted off the build loop so the eligibility gate and the commit step read
+    # the same view without threading it through every call.
+    _taken_days: dict[str, set[date]] = {}
+
     @abstractmethod
     def build(self, slots: list[Slot], context: StrategyContext) -> Roster:
         """Assign employees to slots and return a candidate roster."""
 
+    # --- bookkeeping -----------------------------------------------------
+
+    def ledger(self) -> dict[str, set[date]]:
+        """The booking ledger this strategy records its assignments in."""
+        return self._taken_days
+
     # --- helpers shared by all strategies -------------------------------
 
-    @staticmethod
     def eligible(
+        self,
         employee_id: str,
         slot: Slot,
         spec: ScheduleSpec,
@@ -59,9 +70,9 @@ class IScheduleStrategy(ABC):
         """Hard-rule gate applied before any preference ordering.
 
         Mirrors R002 (qualification), R003 (no double booking), R004 (rest),
-        R005 (consecutive days) and the per-employee max_shifts ceiling.
-        Strategies must call this so a candidate roster never violates a hard
-        rule by construction.
+        R005 (consecutive days), the unavailability list and the per-employee
+        max_shifts ceiling. Strategies must call this so a candidate roster
+        never violates a hard rule by construction.
         """
         employee = spec.employee_by_id(employee_id)
 
@@ -109,6 +120,49 @@ class IScheduleStrategy(ABC):
         roster.assignments.append(Assignment(slot=slot, employee_id=employee_id))
         taken_days.setdefault(employee_id, set()).add(slot.day)
         shift_history.setdefault(employee_id, {})[slot.day] = slot.shift_type_id
+
+
+# --- composable eligibility gates ---------------------------------------
+#
+# Being pulled out of the monolithic gate above one rule at a time, so a
+# strategy can opt into exactly the checks it needs.
+
+
+class UnavailabilityGate(IScheduleStrategy):
+    """Rejects a slot the employee has declared themselves unavailable for."""
+
+    def eligible(
+        self,
+        employee_id: str,
+        slot: Slot,
+        spec: ScheduleSpec,
+        taken_days: dict[str, set[date]],
+        shift_history: dict[str, dict[date, str]],
+        max_consecutive_days: int | None = None,
+    ) -> bool:
+        if not spec.is_available(employee_id, slot.day):
+            return False
+        return super().eligible(
+            employee_id, slot, spec, taken_days, shift_history, max_consecutive_days
+        )
+
+
+class RestGate(IScheduleStrategy):
+    """Rejects a slot that would break the rest rule (R004)."""
+
+    def eligible(
+        self,
+        employee_id: str,
+        slot: Slot,
+        spec: ScheduleSpec,
+        taken_days: dict[str, set[date]],
+        shift_history: dict[str, dict[date, str]],
+        max_consecutive_days: int | None = None,
+    ) -> bool:
+        previous_day = slot.day - timedelta(days=1)
+        previous_shift = shift_history.get(employee_id, {}).get(previous_day)
+        forbidden = (previous_shift, slot.shift_type_id) == ("night", "morning")
+        return not forbidden
 
 
 def load_strategy(definition: StrategyDef) -> IScheduleStrategy:
