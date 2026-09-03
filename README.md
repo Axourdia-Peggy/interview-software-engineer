@@ -7,19 +7,19 @@
 
 ## 給面試受測者
 
-**這是一份面試題。請先閱讀 Wiki，不要只看程式碼。**
+**這是一份面試題。請先閱讀 `docs/`，不要只看程式碼。**
 
 | 你該讀的 | 位置 |
 |---|---|
-| 任務說明（你要做什麼、怎麼交） | [Wiki › Interview Task](../../wiki/Interview-Task) |
-| 模組規格書（唯一的正確性判準） | [Wiki › Module Specification](../../wiki/Module-Specification) |
-| 架構說明 | [Wiki › Architecture](../../wiki/Architecture) |
-| 設定檔 Schema | [Wiki › Configuration Schema](../../wiki/Configuration-Schema) |
+| 任務說明（你要做什麼、怎麼交） | [docs/Interview-Task.md](docs/Interview-Task.md) |
+| 模組規格書（唯一的正確性判準） | [docs/Module-Specification.md](docs/Module-Specification.md) |
+| 架構說明 | [docs/Architecture.md](docs/Architecture.md) |
+| 設定檔 Schema | [docs/Configuration-Schema.md](docs/Configuration-Schema.md) |
 
 **本專案目前無法正確運作。** 你的任務是讓它符合規格書的描述。
 
 > 本題**沒有**提供預期輸出檔（golden file），也**沒有**現成的測試可以告訴你答案。
-> 正確與否一律以 **Wiki 的模組規格書**為準。如何確認自己的修正是對的，是這題的一部分。
+> 正確與否一律以 **`docs/Module-Specification.md`** 為準。如何確認自己的修正是對的，是這題的一部分。
 
 ---
 

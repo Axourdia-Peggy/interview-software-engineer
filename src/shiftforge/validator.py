@@ -205,6 +205,33 @@ def _check_fairness(
     return []
 
 
+def _check_night_shift_quota(
+    roster: Roster, spec: ScheduleSpec, rule: RuleDef, catalogs: CatalogBundle
+) -> list[Violation]:
+    max_nights = rule.params.get("max_nights", 2)
+
+    violations = []
+    for employee in spec.employees:
+        nights = sum(
+            1
+            for a in roster.assignments_for(employee.employee_id)
+            if a.slot.shift_type_id == "night"
+        )
+        if nights > max_nights:
+            violations.append(
+                Violation(
+                    rule_id=rule.rule_id,
+                    rule_name=rule.name,
+                    severity=rule.severity,
+                    message=(
+                        f"{employee.employee_id} is assigned {nights} night shifts "
+                        f"(limit {max_nights})"
+                    ),
+                )
+            )
+    return violations
+
+
 CheckFn = Callable[[Roster, ScheduleSpec, RuleDef, CatalogBundle], list[Violation]]
 
 CHECKS: dict[str, CheckFn] = {
@@ -215,6 +242,7 @@ CHECKS: dict[str, CheckFn] = {
     "max_consecutive_days": _check_max_consecutive_days,
     "weekly_hours": _check_weekly_hours,
     "fairness": _check_fairness,
+    "night_shift_quota": _check_night_shift_quota,
 }
 
 
