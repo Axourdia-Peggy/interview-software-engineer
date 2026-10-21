@@ -125,6 +125,10 @@ class IScheduleStrategy(ABC):
 #
 # Being pulled out of the monolithic gate above one rule at a time, so a
 # strategy can opt into exactly the checks it needs.
+#
+# Gates are stacked through the MRO, so every gate must end by delegating to
+# super().eligible(). A gate that returns on its own cuts off every check
+# behind it, including the full hard-rule gate on IScheduleStrategy.
 
 
 class UnavailabilityGate(IScheduleStrategy):
@@ -161,7 +165,11 @@ class RestGate(IScheduleStrategy):
         previous_day = slot.day - timedelta(days=1)
         previous_shift = shift_history.get(employee_id, {}).get(previous_day)
         forbidden = (previous_shift, slot.shift_type_id) == ("night", "morning")
-        return not forbidden
+        if forbidden:
+            return False
+        return super().eligible(
+            employee_id, slot, spec, taken_days, shift_history, max_consecutive_days
+        )
 
 
 def load_strategy(definition: StrategyDef) -> IScheduleStrategy:
