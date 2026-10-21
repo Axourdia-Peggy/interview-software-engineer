@@ -53,6 +53,27 @@ class StrategyContext:
         return frozenset(tuple(pair) for pair in rule.params["forbidden_transitions"])
 
 
+def breaks_rest(
+    employee_id: str,
+    slot: Slot,
+    shift_history: dict[str, dict[date, str]],
+    forbidden_transitions: frozenset[tuple[str, str]],
+) -> bool:
+    """Whether taking `slot` forms a forbidden R004 pair with either neighbouring day.
+
+    Both directions are checked because a strategy may fill slots out of calendar
+    order (coverage_first goes by role scarcity), so the following day can already
+    be booked.
+    """
+    history = shift_history.get(employee_id, {})
+    previous_shift = history.get(slot.day - timedelta(days=1))
+    next_shift = history.get(slot.day + timedelta(days=1))
+    return (previous_shift, slot.shift_type_id) in forbidden_transitions or (
+        slot.shift_type_id,
+        next_shift,
+    ) in forbidden_transitions
+
+
 class IScheduleStrategy(ABC):
     """Contract every schedule strategy must satisfy."""
 
@@ -102,10 +123,8 @@ class IScheduleStrategy(ABC):
         if len(taken_days.get(employee_id, set())) >= employee.max_shifts:
             return False
 
-        # R004: the previous day's shift and this one must not be a forbidden pair.
-        previous_day = slot.day - timedelta(days=1)
-        previous_shift = shift_history.get(employee_id, {}).get(previous_day)
-        if (previous_shift, slot.shift_type_id) in forbidden_transitions:
+        # R004: no forbidden shift pair with the day before or the day after.
+        if breaks_rest(employee_id, slot, shift_history, forbidden_transitions):
             return False
 
         # R005: taking this slot must not create an over-long consecutive run.
@@ -188,9 +207,7 @@ class RestGate(IScheduleStrategy):
         max_consecutive_days: int | None,
         forbidden_transitions: frozenset[tuple[str, str]],
     ) -> bool:
-        previous_day = slot.day - timedelta(days=1)
-        previous_shift = shift_history.get(employee_id, {}).get(previous_day)
-        if (previous_shift, slot.shift_type_id) in forbidden_transitions:
+        if breaks_rest(employee_id, slot, shift_history, forbidden_transitions):
             return False
         return super().eligible(
             employee_id,
