@@ -97,8 +97,10 @@ def run(spec: ScheduleSpec, catalogs: CatalogBundle) -> RunResult:
     best_report: ValidationReport | None = None
     best_score: tuple[int, int] | None = None
 
+    # `switches` counts how many times the loop has moved on to another strategy:
+    # 0 for the first candidate. N allowed switches means up to N + 1 strategies.
     for switches, definition in enumerate(candidates):
-        if switches >= spec.max_strategy_switches:
+        if switches > spec.max_strategy_switches:
             break
 
         result.strategies_tried.append(definition.strategy_id)
