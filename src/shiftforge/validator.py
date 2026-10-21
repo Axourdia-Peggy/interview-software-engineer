@@ -159,8 +159,8 @@ def _check_max_consecutive_days(
 def _check_weekly_hours(
     roster: Roster, spec: ScheduleSpec, rule: RuleDef, catalogs: CatalogBundle
 ) -> list[Violation]:
-    min_hours = rule.params.get("min_hours", 0)
-    max_hours = rule.params.get("max_hours", 24 * 7)
+    min_hours = rule.params.get("min_weekly_hours", 0)
+    max_hours = rule.params.get("max_weekly_hours", 24 * 7)
 
     violations = []
     for employee in spec.employees:
