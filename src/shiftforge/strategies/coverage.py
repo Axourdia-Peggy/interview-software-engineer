@@ -42,12 +42,15 @@ class CoverageFirstStrategy(UnavailabilityGate, RestGate):
         )
 
         max_run = context.max_consecutive_days()
+        rest = context.forbidden_transitions()
 
         for slot in ordered:
             candidates = [
                 e.employee_id
                 for e in spec.employees
-                if self.eligible(e.employee_id, slot, spec, taken_days, shift_history, max_run)
+                if self.eligible(
+                    e.employee_id, slot, spec, taken_days, shift_history, max_run, rest
+                )
             ]
             if not candidates:
                 roster.unfilled.append(slot)

@@ -35,6 +35,23 @@ class StrategyContext:
             return None
         return rule.params.get("max_days")
 
+    def forbidden_transitions(self) -> frozenset[tuple[str, str]]:
+        """The R004 (previous day, next day) shift pairs declared by the rule catalog.
+
+        Empty when the catalog declares no R004 rule, in which case the validator
+        does not check it either.
+        """
+        try:
+            rule = self.catalogs.rule("rest_between_shifts")
+        except ConfigError:
+            return frozenset()
+        if "forbidden_transitions" not in rule.params:
+            raise ConfigError(
+                f"rule {rule.rule_id} ({rule.name!r}) is missing required param "
+                f"'forbidden_transitions' in the rule catalog"
+            )
+        return frozenset(tuple(pair) for pair in rule.params["forbidden_transitions"])
+
 
 class IScheduleStrategy(ABC):
     """Contract every schedule strategy must satisfy."""
@@ -64,7 +81,8 @@ class IScheduleStrategy(ABC):
         spec: ScheduleSpec,
         taken_days: dict[str, set[date]],
         shift_history: dict[str, dict[date, str]],
-        max_consecutive_days: int | None = None,
+        max_consecutive_days: int | None,
+        forbidden_transitions: frozenset[tuple[str, str]],
     ) -> bool:
         """Hard-rule gate applied before any preference ordering.
 
@@ -84,10 +102,10 @@ class IScheduleStrategy(ABC):
         if len(taken_days.get(employee_id, set())) >= employee.max_shifts:
             return False
 
-        # R004: a night shift must not be followed by a morning shift.
+        # R004: the previous day's shift and this one must not be a forbidden pair.
         previous_day = slot.day - timedelta(days=1)
         previous_shift = shift_history.get(employee_id, {}).get(previous_day)
-        if previous_shift == "night" and slot.shift_type_id == "morning":
+        if (previous_shift, slot.shift_type_id) in forbidden_transitions:
             return False
 
         # R005: taking this slot must not create an over-long consecutive run.
@@ -141,12 +159,19 @@ class UnavailabilityGate(IScheduleStrategy):
         spec: ScheduleSpec,
         taken_days: dict[str, set[date]],
         shift_history: dict[str, dict[date, str]],
-        max_consecutive_days: int | None = None,
+        max_consecutive_days: int | None,
+        forbidden_transitions: frozenset[tuple[str, str]],
     ) -> bool:
         if not spec.is_available(employee_id, slot.day):
             return False
         return super().eligible(
-            employee_id, slot, spec, taken_days, shift_history, max_consecutive_days
+            employee_id,
+            slot,
+            spec,
+            taken_days,
+            shift_history,
+            max_consecutive_days,
+            forbidden_transitions,
         )
 
 
@@ -160,15 +185,21 @@ class RestGate(IScheduleStrategy):
         spec: ScheduleSpec,
         taken_days: dict[str, set[date]],
         shift_history: dict[str, dict[date, str]],
-        max_consecutive_days: int | None = None,
+        max_consecutive_days: int | None,
+        forbidden_transitions: frozenset[tuple[str, str]],
     ) -> bool:
         previous_day = slot.day - timedelta(days=1)
         previous_shift = shift_history.get(employee_id, {}).get(previous_day)
-        forbidden = (previous_shift, slot.shift_type_id) == ("night", "morning")
-        if forbidden:
+        if (previous_shift, slot.shift_type_id) in forbidden_transitions:
             return False
         return super().eligible(
-            employee_id, slot, spec, taken_days, shift_history, max_consecutive_days
+            employee_id,
+            slot,
+            spec,
+            taken_days,
+            shift_history,
+            max_consecutive_days,
+            forbidden_transitions,
         )
 
 
