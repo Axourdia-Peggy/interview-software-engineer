@@ -41,11 +41,6 @@ class IScheduleStrategy(ABC):
 
     strategy_id: str = "unnamed"
 
-    # Booking ledger: which calendar days each employee is already committed to.
-    # Hoisted off the build loop so the eligibility gate and the commit step read
-    # the same view without threading it through every call.
-    _taken_days: dict[str, set[date]] = {}
-
     @abstractmethod
     def build(self, slots: list[Slot], context: StrategyContext) -> Roster:
         """Assign employees to slots and return a candidate roster."""
@@ -53,8 +48,12 @@ class IScheduleStrategy(ABC):
     # --- bookkeeping -----------------------------------------------------
 
     def ledger(self) -> dict[str, set[date]]:
-        """The booking ledger this strategy records its assignments in."""
-        return self._taken_days
+        """A fresh booking ledger: which calendar days each employee is committed to.
+
+        Every build starts from an empty roster, so the ledger must not be shared
+        across builds or across strategy instances. Call it once per build.
+        """
+        return {}
 
     # --- helpers shared by all strategies -------------------------------
 
