@@ -12,14 +12,17 @@ can take goes to `unfilled` (reported by R001), never to an ineligible person.
 
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pytest
 
-from shiftforge.models import Roster
+from shiftforge.config import ConfigError, load_catalogs
+from shiftforge.models import Employee, Roster, ScheduleSpec, Slot
 from shiftforge.spec_parser import expand_slots, parse_spec
 from shiftforge.strategies import StrategyContext, load_strategy
 from shiftforge.validator import validate
 
-from .conftest import EXAMPLES_DIR
+from .conftest import EXAMPLES_DIR, rule_params
 
 STRATEGY_IDS = ["balanced_rotation", "seniority_first", "coverage_first"]
 EXAMPLES = ["clinic_week", "ward_tight", "pharmacy_relief"]
@@ -95,3 +98,72 @@ def test_no_hard_violation_by_construction(catalogs, example, strategy_id, press
     not_coverage = [v.message for v in report.hard_violations if v.rule_name != "coverage"]
     assert not_coverage == []
     assert len(report.hard_violations) == len(roster.unfilled)
+
+
+# --- R004 transitions come from the rule catalog ----------------------------
+
+
+def _forbid_evening_to_morning(payload):
+    # Swap the shipped night -> morning pair for a different one, so a gate that
+    # still hard-codes night -> morning gives the opposite answer on both pairs.
+    rule_params(payload, "rest_between_shifts")["forbidden_transitions"] = [["evening", "morning"]]
+
+
+def test_context_reads_rest_transitions_from_the_catalog(edited_configs):
+    catalogs = load_catalogs(edited_configs(_forbid_evening_to_morning))
+    context = StrategyContext(spec=None, catalogs=catalogs, tuning={})
+
+    assert context.forbidden_transitions() == frozenset({("evening", "morning")})
+
+
+def test_missing_rest_transitions_raises_config_error(edited_configs):
+    def drop_key(payload):
+        del rule_params(payload, "rest_between_shifts")["forbidden_transitions"]
+
+    catalogs = load_catalogs(edited_configs(drop_key))
+    context = StrategyContext(spec=None, catalogs=catalogs, tuning={})
+
+    with pytest.raises(ConfigError, match="forbidden_transitions"):
+        context.forbidden_transitions()
+
+
+@pytest.mark.parametrize("strategy_id", STRATEGY_IDS)
+def test_gate_follows_catalog_rest_transitions(edited_configs, strategy_id):
+    # balanced and seniority use the full gate; coverage goes through RestGate
+    # first, so both hard-coded places are exercised.
+    catalogs = load_catalogs(edited_configs(_forbid_evening_to_morning))
+    definition = next(d for d in catalogs.strategies if d.strategy_id == strategy_id)
+    strategy = load_strategy(definition)
+    rest = StrategyContext(spec=None, catalogs=catalogs, tuning={}).forbidden_transitions()
+
+    day1 = date(2026, 1, 5)
+    day2 = day1 + timedelta(days=1)
+    spec = ScheduleSpec(
+        project_name="unit",
+        start_date=day1,
+        days=2,
+        employees=(Employee("E1", "Nurse", ("nurse",), seniority=1, max_shifts=7),),
+        demand=(),
+        unavailability=frozenset(),
+        max_iterations=1,
+        max_strategy_switches=0,
+    )
+    morning = Slot(day2, "morning", "nurse", 0)
+    taken_days = {"E1": {day1}}
+
+    after_evening = {"E1": {day1: "evening"}}
+    after_night = {"E1": {day1: "night"}}
+    assert not strategy.eligible("E1", morning, spec, taken_days, after_evening, 5, rest)
+    assert strategy.eligible("E1", morning, spec, taken_days, after_night, 5, rest)
+
+
+@pytest.mark.parametrize("strategy_id", STRATEGY_IDS)
+def test_strategies_respect_a_changed_rest_rule(edited_configs, strategy_id):
+    # clinic_week is the only example with both evening and morning shifts.
+    catalogs = load_catalogs(edited_configs(_forbid_evening_to_morning))
+    spec = parse_spec(EXAMPLES_DIR / "clinic_week.json", catalogs)
+    roster = _build(catalogs, spec, strategy_id)
+    report = validate(roster, spec, catalogs)
+
+    rest_violations = [v.message for v in report.violations if v.rule_name == "rest_between_shifts"]
+    assert rest_violations == []
