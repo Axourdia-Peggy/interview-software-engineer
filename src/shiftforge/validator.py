@@ -81,6 +81,21 @@ def _check_qualification(
                     ),
                 )
             )
+        # The spec treats a declared unavailability like a missing qualification,
+        # so it is reported under the same hard rule. Without this check only the
+        # strategies' gate enforced it, and a gate bug would ship the roster.
+        if not spec.is_available(employee.employee_id, assignment.slot.day):
+            violations.append(
+                Violation(
+                    rule_id=rule.rule_id,
+                    rule_name=rule.name,
+                    severity=rule.severity,
+                    message=(
+                        f"{employee.employee_id} is unavailable on "
+                        f"{assignment.slot.day.isoformat()} for {assignment.slot.key}"
+                    ),
+                )
+            )
     return violations
 
 
