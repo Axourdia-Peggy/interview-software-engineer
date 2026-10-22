@@ -128,6 +128,19 @@ def test_missing_rest_transitions_raises_config_error(edited_configs):
         context.forbidden_transitions()
 
 
+def test_missing_max_days_raises_config_error(edited_configs):
+    # Regression: params.get("max_days") returned None, which made the gate skip
+    # R005 silently; only the validator, after a full build, stopped the run.
+    def drop_key(payload):
+        del rule_params(payload, "max_consecutive_days")["max_days"]
+
+    catalogs = load_catalogs(edited_configs(drop_key))
+    context = StrategyContext(spec=None, catalogs=catalogs, tuning={})
+
+    with pytest.raises(ConfigError, match="max_days"):
+        context.max_consecutive_days()
+
+
 @pytest.mark.parametrize("strategy_id", STRATEGY_IDS)
 def test_gate_follows_catalog_rest_transitions(edited_configs, strategy_id):
     # balanced and seniority use the full gate; coverage goes through RestGate
