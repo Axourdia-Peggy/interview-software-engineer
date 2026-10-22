@@ -9,10 +9,25 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import date, timedelta
+from typing import Any
 
-from .config import CatalogBundle, RuleDef
+from .config import CatalogBundle, ConfigError, RuleDef
 from .models import Roster, ScheduleSpec, ValidationReport, Violation
 from .spec_parser import expand_slots
+
+
+def _param(rule: RuleDef, key: str) -> Any:
+    """Read a rule parameter from the catalog, failing loudly when it is absent.
+
+    The catalog is the only source of rule parameters. A built-in fallback would
+    let a renamed or missing key silently change the rule without any error.
+    """
+    if key not in rule.params:
+        raise ConfigError(
+            f"rule {rule.rule_id} ({rule.name!r}) is missing required param {key!r} "
+            f"in the rule catalog"
+        )
+    return rule.params[key]
 
 
 def _check_coverage(
@@ -66,6 +81,21 @@ def _check_qualification(
                     ),
                 )
             )
+        # The spec treats a declared unavailability like a missing qualification,
+        # so it is reported under the same hard rule. Without this check only the
+        # strategies' gate enforced it, and a gate bug would ship the roster.
+        if not spec.is_available(employee.employee_id, assignment.slot.day):
+            violations.append(
+                Violation(
+                    rule_id=rule.rule_id,
+                    rule_name=rule.name,
+                    severity=rule.severity,
+                    message=(
+                        f"{employee.employee_id} is unavailable on "
+                        f"{assignment.slot.day.isoformat()} for {assignment.slot.key}"
+                    ),
+                )
+            )
     return violations
 
 
@@ -94,7 +124,7 @@ def _check_no_double_booking(
 def _check_rest_between_shifts(
     roster: Roster, spec: ScheduleSpec, rule: RuleDef, catalogs: CatalogBundle
 ) -> list[Violation]:
-    forbidden = {tuple(pair) for pair in rule.params.get("forbidden_transitions", [])}
+    forbidden = {tuple(pair) for pair in _param(rule, "forbidden_transitions")}
 
     by_employee: dict[str, dict[date, str]] = {}
     for assignment in roster.assignments:
@@ -124,7 +154,7 @@ def _check_rest_between_shifts(
 def _check_max_consecutive_days(
     roster: Roster, spec: ScheduleSpec, rule: RuleDef, catalogs: CatalogBundle
 ) -> list[Violation]:
-    max_days = rule.params.get("max_days", 5)
+    max_days = _param(rule, "max_days")
 
     violations = []
     for employee in spec.employees:
@@ -159,8 +189,8 @@ def _check_max_consecutive_days(
 def _check_weekly_hours(
     roster: Roster, spec: ScheduleSpec, rule: RuleDef, catalogs: CatalogBundle
 ) -> list[Violation]:
-    min_hours = rule.params.get("min_hours", 0)
-    max_hours = rule.params.get("max_hours", 24 * 7)
+    min_hours = _param(rule, "min_weekly_hours")
+    max_hours = _param(rule, "max_weekly_hours")
 
     violations = []
     for employee in spec.employees:
@@ -186,7 +216,7 @@ def _check_weekly_hours(
 def _check_fairness(
     roster: Roster, spec: ScheduleSpec, rule: RuleDef, catalogs: CatalogBundle
 ) -> list[Violation]:
-    max_spread = rule.params.get("max_spread", 3)
+    max_spread = _param(rule, "max_spread")
 
     counts = [len(roster.assignments_for(e.employee_id)) for e in spec.employees]
     if not counts:
@@ -208,7 +238,7 @@ def _check_fairness(
 def _check_night_shift_quota(
     roster: Roster, spec: ScheduleSpec, rule: RuleDef, catalogs: CatalogBundle
 ) -> list[Violation]:
-    max_nights = rule.params.get("max_nights", 2)
+    max_nights = _param(rule, "max_nights")
 
     violations = []
     for employee in spec.employees:

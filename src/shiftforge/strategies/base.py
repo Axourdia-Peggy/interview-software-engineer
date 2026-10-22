@@ -28,23 +28,61 @@ class StrategyContext:
     notes: list[str] = field(default_factory=list)
 
     def max_consecutive_days(self) -> int | None:
-        """The R005 limit as declared by the rule catalog, or None if absent."""
+        """The R005 limit as declared by the rule catalog, or None if the rule is absent."""
         try:
             rule = self.catalogs.rule("max_consecutive_days")
         except ConfigError:
             return None
-        return rule.params.get("max_days")
+        if "max_days" not in rule.params:
+            raise ConfigError(
+                f"rule {rule.rule_id} ({rule.name!r}) is missing required param "
+                f"'max_days' in the rule catalog"
+            )
+        return rule.params["max_days"]
+
+    def forbidden_transitions(self) -> frozenset[tuple[str, str]]:
+        """The R004 (previous day, next day) shift pairs declared by the rule catalog.
+
+        Empty when the catalog declares no R004 rule, in which case the validator
+        does not check it either.
+        """
+        try:
+            rule = self.catalogs.rule("rest_between_shifts")
+        except ConfigError:
+            return frozenset()
+        if "forbidden_transitions" not in rule.params:
+            raise ConfigError(
+                f"rule {rule.rule_id} ({rule.name!r}) is missing required param "
+                f"'forbidden_transitions' in the rule catalog"
+            )
+        return frozenset(tuple(pair) for pair in rule.params["forbidden_transitions"])
+
+
+def breaks_rest(
+    employee_id: str,
+    slot: Slot,
+    shift_history: dict[str, dict[date, str]],
+    forbidden_transitions: frozenset[tuple[str, str]],
+) -> bool:
+    """Whether taking `slot` forms a forbidden R004 pair with either neighbouring day.
+
+    Both directions are checked because a strategy may fill slots out of calendar
+    order (coverage_first goes by role scarcity), so the following day can already
+    be booked.
+    """
+    history = shift_history.get(employee_id, {})
+    previous_shift = history.get(slot.day - timedelta(days=1))
+    next_shift = history.get(slot.day + timedelta(days=1))
+    return (previous_shift, slot.shift_type_id) in forbidden_transitions or (
+        slot.shift_type_id,
+        next_shift,
+    ) in forbidden_transitions
 
 
 class IScheduleStrategy(ABC):
     """Contract every schedule strategy must satisfy."""
 
     strategy_id: str = "unnamed"
-
-    # Booking ledger: which calendar days each employee is already committed to.
-    # Hoisted off the build loop so the eligibility gate and the commit step read
-    # the same view without threading it through every call.
-    _taken_days: dict[str, set[date]] = {}
 
     @abstractmethod
     def build(self, slots: list[Slot], context: StrategyContext) -> Roster:
@@ -53,8 +91,12 @@ class IScheduleStrategy(ABC):
     # --- bookkeeping -----------------------------------------------------
 
     def ledger(self) -> dict[str, set[date]]:
-        """The booking ledger this strategy records its assignments in."""
-        return self._taken_days
+        """A fresh booking ledger: which calendar days each employee is committed to.
+
+        Every build starts from an empty roster, so the ledger must not be shared
+        across builds or across strategy instances. Call it once per build.
+        """
+        return {}
 
     # --- helpers shared by all strategies -------------------------------
 
@@ -65,7 +107,8 @@ class IScheduleStrategy(ABC):
         spec: ScheduleSpec,
         taken_days: dict[str, set[date]],
         shift_history: dict[str, dict[date, str]],
-        max_consecutive_days: int | None = None,
+        max_consecutive_days: int | None,
+        forbidden_transitions: frozenset[tuple[str, str]],
     ) -> bool:
         """Hard-rule gate applied before any preference ordering.
 
@@ -85,10 +128,8 @@ class IScheduleStrategy(ABC):
         if len(taken_days.get(employee_id, set())) >= employee.max_shifts:
             return False
 
-        # R004: a night shift must not be followed by a morning shift.
-        previous_day = slot.day - timedelta(days=1)
-        previous_shift = shift_history.get(employee_id, {}).get(previous_day)
-        if previous_shift == "night" and slot.shift_type_id == "morning":
+        # R004: no forbidden shift pair with the day before or the day after.
+        if breaks_rest(employee_id, slot, shift_history, forbidden_transitions):
             return False
 
         # R005: taking this slot must not create an over-long consecutive run.
@@ -126,6 +167,10 @@ class IScheduleStrategy(ABC):
 #
 # Being pulled out of the monolithic gate above one rule at a time, so a
 # strategy can opt into exactly the checks it needs.
+#
+# Gates are stacked through the MRO, so every gate must end by delegating to
+# super().eligible(). A gate that returns on its own cuts off every check
+# behind it, including the full hard-rule gate on IScheduleStrategy.
 
 
 class UnavailabilityGate(IScheduleStrategy):
@@ -138,12 +183,19 @@ class UnavailabilityGate(IScheduleStrategy):
         spec: ScheduleSpec,
         taken_days: dict[str, set[date]],
         shift_history: dict[str, dict[date, str]],
-        max_consecutive_days: int | None = None,
+        max_consecutive_days: int | None,
+        forbidden_transitions: frozenset[tuple[str, str]],
     ) -> bool:
         if not spec.is_available(employee_id, slot.day):
             return False
         return super().eligible(
-            employee_id, slot, spec, taken_days, shift_history, max_consecutive_days
+            employee_id,
+            slot,
+            spec,
+            taken_days,
+            shift_history,
+            max_consecutive_days,
+            forbidden_transitions,
         )
 
 
@@ -157,12 +209,20 @@ class RestGate(IScheduleStrategy):
         spec: ScheduleSpec,
         taken_days: dict[str, set[date]],
         shift_history: dict[str, dict[date, str]],
-        max_consecutive_days: int | None = None,
+        max_consecutive_days: int | None,
+        forbidden_transitions: frozenset[tuple[str, str]],
     ) -> bool:
-        previous_day = slot.day - timedelta(days=1)
-        previous_shift = shift_history.get(employee_id, {}).get(previous_day)
-        forbidden = (previous_shift, slot.shift_type_id) == ("night", "morning")
-        return not forbidden
+        if breaks_rest(employee_id, slot, shift_history, forbidden_transitions):
+            return False
+        return super().eligible(
+            employee_id,
+            slot,
+            spec,
+            taken_days,
+            shift_history,
+            max_consecutive_days,
+            forbidden_transitions,
+        )
 
 
 def load_strategy(definition: StrategyDef) -> IScheduleStrategy:
