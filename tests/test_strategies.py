@@ -17,9 +17,10 @@ from datetime import date, timedelta
 import pytest
 
 from shiftforge.config import ConfigError, load_catalogs
-from shiftforge.models import Employee, Roster, ScheduleSpec, Slot
+from shiftforge.models import DemandEntry, Employee, Roster, ScheduleSpec, Slot
 from shiftforge.spec_parser import expand_slots, parse_spec
 from shiftforge.strategies import StrategyContext, load_strategy
+from shiftforge.strategies.base import breaks_rest
 from shiftforge.validator import validate
 
 from .conftest import EXAMPLES_DIR, rule_params
@@ -167,3 +168,51 @@ def test_strategies_respect_a_changed_rest_rule(edited_configs, strategy_id):
 
     rest_violations = [v.message for v in report.violations if v.rule_name == "rest_between_shifts"]
     assert rest_violations == []
+
+
+# --- R004 looks at both neighbouring days -----------------------------------
+
+
+def test_breaks_rest_checks_both_neighbouring_days():
+    forbidden = frozenset({("night", "morning")})
+    day1, day2 = date(2026, 1, 5), date(2026, 1, 6)
+
+    # The following day is already booked: the case the gate used to miss.
+    next_morning = {"E1": {day2: "morning"}}
+    assert breaks_rest("E1", Slot(day1, "night", "nurse", 0), next_morning, forbidden)
+
+    previous_night = {"E1": {day1: "night"}}
+    assert breaks_rest("E1", Slot(day2, "morning", "nurse", 0), previous_night, forbidden)
+    assert not breaks_rest("E1", Slot(day2, "evening", "nurse", 0), previous_night, forbidden)
+
+
+def test_coverage_first_respects_rest_when_filling_out_of_date_order(catalogs):
+    # Regression: senior (2 people) is scarcer than nurse (3 people), so
+    # coverage_first books every morning senior seat before any night nurse
+    # seat. S1 and S2 alternate the senior mornings; when N1 runs out, a night
+    # seat goes to whoever is lightest, and with a previous-day-only check that
+    # was S2 on the night before one of S2's senior mornings.
+    spec = ScheduleSpec(
+        project_name="out_of_order_rest",
+        start_date=date(2026, 3, 5),
+        days=7,
+        employees=(
+            Employee("N1", "Nurse", ("nurse",), seniority=1, max_shifts=7),
+            Employee("S1", "Senior 1", ("nurse", "senior"), seniority=5, max_shifts=7),
+            Employee("S2", "Senior 2", ("nurse", "senior"), seniority=5, max_shifts=7),
+        ),
+        demand=(
+            DemandEntry("morning", "senior", 1),
+            DemandEntry("night", "nurse", 1),
+        ),
+        unavailability=frozenset(),
+        max_iterations=1,
+        max_strategy_switches=0,
+    )
+    roster = _build(catalogs, spec, "coverage_first")
+    report = validate(roster, spec, catalogs)
+
+    rest_violations = [v.message for v in report.violations if v.rule_name == "rest_between_shifts"]
+    assert rest_violations == []
+    # Too few people to fill everything: the gate must leave seats empty instead.
+    assert len(report.hard_violations) == len(roster.unfilled)
