@@ -28,12 +28,17 @@ class StrategyContext:
     notes: list[str] = field(default_factory=list)
 
     def max_consecutive_days(self) -> int | None:
-        """The R005 limit as declared by the rule catalog, or None if absent."""
+        """The R005 limit as declared by the rule catalog, or None if the rule is absent."""
         try:
             rule = self.catalogs.rule("max_consecutive_days")
         except ConfigError:
             return None
-        return rule.params.get("max_days")
+        if "max_days" not in rule.params:
+            raise ConfigError(
+                f"rule {rule.rule_id} ({rule.name!r}) is missing required param "
+                f"'max_days' in the rule catalog"
+            )
+        return rule.params["max_days"]
 
     def forbidden_transitions(self) -> frozenset[tuple[str, str]]:
         """The R004 (previous day, next day) shift pairs declared by the rule catalog.
