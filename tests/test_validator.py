@@ -1,7 +1,13 @@
-"""Rule parameters must come from the rule catalog, and a missing one must fail loudly."""
+"""Rule validation.
+
+Rule parameters must come from the rule catalog, and a missing one must fail
+loudly. The validator is the last line of defence behind the strategies' gate,
+so it must catch every hard restriction on its own.
+"""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, timedelta
 
 import pytest
@@ -100,3 +106,21 @@ def test_missing_param_exits_with_bad_input(edited_configs, capsys):
 
     assert exit_code == 2
     assert "missing required param 'max_days'" in capsys.readouterr().err
+
+
+# --- unavailability is a hard restriction -----------------------------------
+
+
+def test_unavailable_day_is_a_hard_violation(catalogs):
+    # Regression: only the strategies' gate checked unavailability, so a roster
+    # putting someone on a declared day off passed validation. The spec treats it
+    # like a missing qualification, so it is reported under R002.
+    spec = replace(_spec(), unavailability=frozenset({("E1", START)}))
+    report = validate(_two_morning_shifts(), spec, catalogs)  # works START and START+1
+
+    violations = [v for v in report.violations if v.rule_name == "qualification"]
+    assert [v.message for v in violations] == [
+        "E1 is unavailable on 2026-01-05 for 2026-01-05|morning|nurse|0"
+    ]
+    assert violations[0].severity == "hard"
+    assert not report.passed
